@@ -1,0 +1,6 @@
+node_modules/
+dist/
+runs/
+*.log
+projects/*
+!projects/README.md

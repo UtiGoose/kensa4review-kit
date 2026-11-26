@@ -1,0 +1,160 @@
+rules:
+  - id: rk-java-sql-concat
+    languages: [java]
+    severity: WARNING
+    message: SQL is built with string concatenation or format. Pass values as bind parameters.
+    metadata:
+      title: SQL string concatenation
+      category: security
+      cwe: ["CWE-89"]
+    patterns:
+      - pattern-either:
+          - pattern: $O.$M($A + $B, ...)
+          - pattern: $O.$M(String.format(...), ...)
+          - pattern: $O.$M($A.formatted(...), ...)
+          - pattern: |
+              String $S = $A + $B;
+              ...
+              $O.$M($S, ...);
+      - metavariable-regex:
+          metavariable: $O
+          regex: (?i)(.*\.)?(\w*jdbc\w*|\w*template|em|entitymanager|\w*session|\w*statement|stmt|\w*connection|conn|dsl|create|ctx|context)$
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(query|queryForList|queryForObject|queryForMap|queryForRowSet|update|execute|batchUpdate|createNativeQuery|createQuery|prepareStatement|executeQuery|executeUpdate|resultQuery|fetch)$
+      - metavariable-pattern:
+          metavariable: $B
+          patterns:
+            - pattern-not: '"..."'
+  - id: rk-jooq-plain-sql-concat
+    languages: [java]
+    severity: WARNING
+    message: A concatenated string is passed to jOOQ plain SQL (DSL.field/condition/table/sql). Pass values as {0} bind parameters.
+    metadata:
+      title: jOOQ plain SQL concatenation
+      category: security
+      cwe: ["CWE-89"]
+    patterns:
+      - pattern-either:
+          - pattern: DSL.$M($A + $B, ...)
+          - pattern: DSL.$M(String.format(...), ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(field|condition|table|sql|query|resultQuery)$
+      - metavariable-pattern:
+          metavariable: $B
+          patterns:
+            - pattern-not: '"..."'
+  - id: rk-java-repository-in-loop
+    languages: [java]
+    severity: WARNING
+    message: A repository is called inside a loop or stream (possible N+1). Load the data in one query.
+    metadata:
+      title: Repository call in a loop (N+1)
+      category: performance
+    patterns:
+      - pattern-either:
+          - pattern-inside: 'for ($T $V : $E) { ... }'
+          - pattern-inside: 'for (...; ...; ...) { ... }'
+          - pattern-inside: 'while (...) { ... }'
+          - patterns:
+              - pattern-inside: ($P) -> $B
+              - pattern-inside: $C.$OP(...)
+              - metavariable-regex:
+                  metavariable: $OP
+                  regex: ^(map|flatMap|forEach|filter|anyMatch|allMatch|noneMatch|peek|mapToObj|mapToInt|mapToLong|mapToDouble|computeIfAbsent|removeIf|replaceAll)$
+      - pattern-either:
+          - pattern: $REPO.$M(...)
+          - pattern: this.$REPO.$M(...)
+      - metavariable-regex:
+          metavariable: $REPO
+          regex: (?i)^[a-z_]*(repository|repo|dao|mapper)s?$
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(find|get|load|count|exists|query|select|fetch|search|save|delete|update|insert|lock)
+  - id: rk-java-unbounded-find-all
+    languages: [java]
+    severity: INFO
+    message: findAll() loads every row. Use paging or conditions for tables that grow.
+    metadata:
+      title: Unbounded findAll
+      category: performance
+    patterns:
+      - pattern-either:
+          - pattern: $REPO.findAll()
+          - pattern: this.$REPO.findAll()
+      - metavariable-regex:
+          metavariable: $REPO
+          regex: (?i)^[a-z_]*(repository|repo)s?$
+  - id: rk-java-transactional-external-call
+    languages: [java]
+    severity: WARNING
+    message: An external HTTP/API call runs inside a transaction, holding the database connection and locks while waiting.
+    metadata:
+      title: External call inside a transaction
+      category: performance
+    patterns:
+      - pattern-inside: |
+          @Transactional(...)
+          $R $F(...) { ... }
+      - pattern-either:
+          - pattern: (RestTemplate $X).$C(...)
+          - pattern: (WebClient $X).$C(...)
+          - pattern: (RestClient $X).$C(...)
+          - pattern: (java.net.http.HttpClient $X).send(...)
+          - pattern: (java.net.http.HttpClient $X).sendAsync(...)
+          - pattern: $X.models.generateContent(...)
+  - id: rk-java-log-sensitive
+    languages: [java]
+    severity: WARNING
+    message: A password, token or other secret may be written to the log.
+    metadata:
+      title: Secret written to logs
+      category: security
+      cwe: ["CWE-532"]
+    patterns:
+      - pattern: $LOG.$LEVEL(..., $ARG, ...)
+      - metavariable-regex:
+          metavariable: $LOG
+          regex: (?i)^(log|logger)$
+      - metavariable-regex:
+          metavariable: $LEVEL
+          regex: ^(trace|debug|info|warn|error)$
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: (?i).*(^|\.)(get)?\w*(password|passwd|secret|apikey|api_?key|credential|token)\w*(\(\))?$
+      - metavariable-pattern:
+          metavariable: $ARG
+          patterns:
+            - pattern-not: '"..."'
+  - id: rk-java-print-stack-trace
+    languages: [java]
+    severity: INFO
+    message: Log the exception with the logger instead of printStackTrace().
+    metadata:
+      title: printStackTrace
+      category: quality
+    pattern: $E.printStackTrace()
+  - id: rk-spring-permit-all-wildcard
+    languages: [java]
+    severity: ERROR
+    message: Every path is allowed without authentication.
+    metadata:
+      title: All paths permitted
+      category: security
+      cwe: ["CWE-862"]
+    pattern-either:
+      - pattern: $A.requestMatchers("/**").permitAll()
+      - pattern: $A.anyRequest().permitAll()
+  - id: rk-jwt-unsigned
+    languages: [java]
+    severity: ERROR
+    message: The JWT is parsed without verifying its signature.
+    metadata:
+      title: Unsigned JWT parsing
+      category: security
+      cwe: ["CWE-347"]
+    pattern-either:
+      - pattern: $P.parseUnsecuredClaims(...)
+      - pattern: $P.parseClaimsJwt(...)
+      - pattern: $P.unsecured()

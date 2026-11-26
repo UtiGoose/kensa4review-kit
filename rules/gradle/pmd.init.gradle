@@ -1,0 +1,29 @@
+def outDir = new File(System.getProperty("kensa.out"))
+def ruleset = new File(System.getProperty("kensa.pmdRuleset"))
+
+def assign = { target, String property, value ->
+    def current = target."$property"
+    if (current instanceof org.gradle.api.provider.Property || current instanceof org.gradle.api.file.FileSystemLocationProperty) {
+        current.set(value)
+    } else {
+        target."$property" = value
+    }
+}
+
+allprojects { p ->
+    p.pluginManager.withPlugin("java") {
+        p.pluginManager.apply("pmd")
+        def extension = p.extensions.getByName("pmd")
+        assign(extension, "toolVersion", System.getProperty("kensa.pmd"))
+        assign(extension, "ignoreFailures", true)
+        assign(extension, "consoleOutput", false)
+        extension.ruleSets = []
+        extension.ruleSetFiles = p.files(ruleset)
+        p.tasks.withType(org.gradle.api.plugins.quality.Pmd).configureEach { task ->
+            def name = (p.path == ":" ? "root" : p.path.substring(1).replace(":", "-")) + "-" + task.name
+            task.reports.xml.required.set(true)
+            task.reports.html.required.set(false)
+            task.reports.xml.outputLocation.set(new File(outDir, "pmd-${name}.xml"))
+        }
+    }
+}

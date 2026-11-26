@@ -1,0 +1,23 @@
+{
+  "name": "kensa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "test:rules": "semgrep --test rules/semgrep",
+    "build:win": "bun build src/main.ts --compile --target=bun-windows-x64 --outfile dist/kensa.exe",
+    "build:linux": "bun build src/main.ts --compile --target=bun-linux-x64 --outfile dist/kensa"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "8.7.5",
+    "fflate": "0.8.3",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "6.0.3"
+  }
+}

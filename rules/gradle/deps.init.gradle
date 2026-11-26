@@ -1,0 +1,22 @@
+def outDir = new File(System.getProperty("kensa.out"))
+
+allprojects { p ->
+    p.tasks.register("kensaDependencies") {
+        doLast {
+            def name = p.path == ":" ? "root" : p.path.substring(1).replace(":", "-")
+            def lines = new LinkedHashSet<String>()
+            ["runtimeClasspath", "compileClasspath"].each { configurationName ->
+                def configuration = p.configurations.findByName(configurationName)
+                if (configuration != null && configuration.canBeResolved) {
+                    configuration.incoming.resolutionResult.allComponents.each { component ->
+                        def id = component.moduleVersion
+                        if (id != null && component.id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                            lines << "${configurationName}\t${id.group}:${id.name}:${id.version}"
+                        }
+                    }
+                }
+            }
+            new File(outDir, "deps-${name}.txt").text = lines.join("\n")
+        }
+    }
+}

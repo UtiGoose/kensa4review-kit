@@ -1,0 +1,14 @@
+{
+  "images": {
+    "semgrep": "semgrep/semgrep:1.184.0",
+    "gitleaks": "zricethezav/gitleaks:v8.30.1",
+    "trivy": "aquasec/trivy:0.76.1",
+    "hadolint": "hadolint/hadolint:v2.15.1"
+  },
+  "gradle": {
+    "spotbugsPlugin": "6.5.13",
+    "spotbugs": "4.10.5",
+    "findsecbugs": "1.14.0",
+    "pmd": "7.29.0"
+  }
+}

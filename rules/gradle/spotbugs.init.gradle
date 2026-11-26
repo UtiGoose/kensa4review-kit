@@ -1,0 +1,40 @@
+initscript {
+    repositories {
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "com.github.spotbugs.snom:spotbugs-gradle-plugin:${System.getProperty('kensa.spotbugsPlugin')}"
+    }
+}
+
+def outDir = new File(System.getProperty("kensa.out"))
+def exclude = System.getProperty("kensa.spotbugsExclude")
+
+def assign = { target, String property, value ->
+    def current = target."$property"
+    if (current instanceof org.gradle.api.provider.Property || current instanceof org.gradle.api.file.FileSystemLocationProperty) {
+        current.set(value)
+    } else {
+        target."$property" = value
+    }
+}
+
+allprojects { p ->
+    p.pluginManager.withPlugin("java") {
+        p.pluginManager.apply(com.github.spotbugs.snom.SpotBugsPlugin)
+        p.dependencies.add("spotbugsPlugins", "com.h3xstream.findsecbugs:findsecbugs-plugin:${System.getProperty('kensa.findsecbugs')}")
+        def extension = p.extensions.getByName("spotbugs")
+        assign(extension, "toolVersion", System.getProperty("kensa.spotbugs"))
+        assign(extension, "ignoreFailures", true)
+        assign(extension, "effort", com.github.spotbugs.snom.Effort.valueOf("MAX"))
+        assign(extension, "reportLevel", com.github.spotbugs.snom.Confidence.valueOf("MEDIUM"))
+        if (exclude) assign(extension, "excludeFilter", new File(exclude))
+        p.tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach { task ->
+            def name = (p.path == ":" ? "root" : p.path.substring(1).replace(":", "-")) + "-" + task.name
+            task.reports.create("sarif") { report ->
+                report.required.set(true)
+                report.outputLocation.set(new File(outDir, "spotbugs-${name}.sarif"))
+            }
+        }
+    }
+}

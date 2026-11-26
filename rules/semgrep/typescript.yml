@@ -1,0 +1,51 @@
+rules:
+  - id: rk-react-dangerous-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: dangerouslySetInnerHTML can cause XSS. Make sure the value is sanitized.
+    metadata:
+      title: dangerouslySetInnerHTML
+      category: security
+      cwe: ["CWE-79"]
+    pattern: <$EL dangerouslySetInnerHTML={$X} />
+  - id: rk-dom-inner-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: A dynamic value is assigned to innerHTML or outerHTML (XSS).
+    metadata:
+      title: Dynamic innerHTML assignment
+      category: security
+      cwe: ["CWE-79"]
+    patterns:
+      - pattern-either:
+          - pattern: $E.innerHTML = $X
+          - pattern: $E.outerHTML = $X
+      - pattern-not: $E.innerHTML = "..."
+      - pattern-not: $E.outerHTML = "..."
+  - id: rk-token-in-web-storage
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: A token is stored in localStorage or sessionStorage, where any XSS can read it.
+    metadata:
+      title: Token in web storage
+      category: security
+      cwe: ["CWE-922"]
+    patterns:
+      - pattern-either:
+          - pattern: localStorage.setItem($K, ...)
+          - pattern: sessionStorage.setItem($K, ...)
+          - pattern: window.localStorage.setItem($K, ...)
+      - metavariable-regex:
+          metavariable: $K
+          regex: (?i).*(token|jwt|credential|auth(?!or)|session[-_.]?(id|key|token))
+  - id: rk-eval
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: A string is executed as code with eval or new Function.
+    metadata:
+      title: eval / new Function
+      category: security
+      cwe: ["CWE-95"]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
